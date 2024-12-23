@@ -45,7 +45,7 @@
 
 ## 5. Configurar token
  - Vá até o arquivo .env , se não tiver crie um , e dentro dele precisa estar "TOKEN = {seu_token}" , no caso o "seu_token" foi aquele você configurou.
-   - obs: não precisa conter aspas no token.
+   - obs: não precisa conter aspas no token e nem chaves.
 
 # Inicializar o bot com um prefixo
 ## 1. Rodar arquivo para iniciar
