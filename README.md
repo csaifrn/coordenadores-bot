@@ -23,7 +23,7 @@
 - Selecione as permissões desejadas e gere o link para adicionar o bot ao seu servidor.
 - Entre na url desse link e selecione o servidor que ele ficará.
 
-# Como configurar o Bot para rodar seu Servidor Discord
+# O que é preciso para rodar o bot no seu Servidor Discord?
 
 ## 1. Baixar o repositório
 - Seja por meio do git clone ou baixando o zip do repositório.
