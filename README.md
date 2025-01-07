@@ -28,22 +28,15 @@
 ## 1. Baixar o repositório
 - Seja por meio do git clone ou baixando o zip do repositório.
 - Abra essa pasta em um editor de código(ex.: VS code).
-
-## 2. Instalar o Node.js (Pré-requisito para o Discord Bot)
-- Acesse o site oficial: Node.js
-- Baixe uma versão do node.js ( se possível a mais atualizada )
-- Após a instalação, confirme se o Node.js está instalado corretamente executando os comandos:
-  - node -v
-  - npm -v
-
-## 3. Inicializar o Bot com Python
+  
+## 2. Inicializar o Bot com Python
 - Instale o Python em seu computador se ainda não tiver (você pode fazer isso através do site oficial do Python).
 
-## 4. Instale as Bibliotecas Discord.py
+## 3. Instale as Bibliotecas Discord.py
 - Abra o terminal ou prompt de comando e instale a biblioteca discord.py com o comando:
   - pip install discord.py
 
-## 5. Configurar token
+## 4. Configurar token
  - Vá até o arquivo .env , se não tiver crie um , e dentro dele precisa estar "TOKEN = {seu_token}" , no caso o "seu_token" foi aquele você configurou.
    - obs: não precisa conter aspas no token e nem chaves.
 
