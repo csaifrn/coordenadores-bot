@@ -1,8 +1,6 @@
 # Ignorar o diretório .env
 .env/
 .env
-env/
-ENV/
 # Ignorar arquivos de cache do Python
 __pycache__/
 
