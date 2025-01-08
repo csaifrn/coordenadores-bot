@@ -77,9 +77,10 @@ class Coordenador(commands.Cog):
         dados["respostas"].extend(respostas)
         await interaction.followup.send(
             f"Respostas adicionadas ao título **{titulo}**:\n"
-            f"{"\n".join([f'- {r}' for r in respostas])}\n"
+            f"{chr(10).join([f'- {r}' for r in respostas])}\n"
             "O título foi atualizado com as novas respostas."
         )
+
 
      
 async def setup(bot):
