@@ -1,0 +1,141 @@
+from discord.ext import commands
+import discord
+import asyncio
+from discord import app_commands
+
+duvidas_por_usuario = {}
+
+
+class a(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.atendimento_ativo = {}
+
+    @app_commands.command(description='Inicia o atendimento e captura as mensagens com um título definido pelo usuário.')
+    async def ao(self, interaction: discord.Interaction):
+        if interaction.user.id in self.atendimento_ativo: 
+            await interaction.response.send_message("Você já está em um atendimento.")
+            return
+        
+        menu_opcoes = (
+            "Menu de Opções:\n"
+            "1. Adicionar nova dúvida.\n"
+            "2. Finalizar atendimento atual."
+        )
+
+        await interaction.response.send_message('SEJA BEM VINDO!')
+
+        while True:
+            await interaction.followup.send(menu_opcoes)
+
+            escolha = await self.bot.wait_for('message')
+            escolha = escolha.content.strip()
+
+            if escolha == '1':
+
+                await interaction.followup.send("Por favor, digite o título da sua dúvida.")
+
+            
+                titulo_msg = await self.bot.wait_for('message')
+                titulo = titulo_msg.content.strip()
+                
+
+                self.atendimento_ativo[interaction.user.name] = titulo
+                if interaction.user.name not in duvidas_por_usuario:
+                    duvidas_por_usuario[interaction.user.name] = {}
+                duvidas_por_usuario[interaction.user.name][titulo] = {"mensagens": [], "respostas": []}
+
+                await interaction.followup.send(
+                    f"Título registrado: **{titulo}**. Agora você pode digitar as mensagens da sua dúvida. "
+                    "Envie 'parar' ou use o comando '/finalizar_atendimento' para encerrar."
+                )
+
+                while True:
+                    mensagem = await self.bot.wait_for('message')
+
+                    if mensagem.content.lower() == "parar":
+                        break            
+
+                    duvidas_por_usuario[interaction.user.name][titulo]["mensagens"].append(mensagem.content)
+
+            elif escolha== '2':
+                await interaction.followup.send("Para conferir atendimentos basta utilizar /conferir_atendimento")
+                break
+            else :
+                await interaction.followup.send("Escolha 1 ou 2!")
+
+    
+    @app_commands.command(description='Conferir dúvidas registradas.')
+    async def conferir_atendimaaaaaaaaaaaaaaaaaaaento(self, interaction: discord.Interaction):
+        user_name= interaction.user.name
+        user_duvidas = duvidas_por_usuario.get(user_name)
+
+        if not user_duvidas:
+            await interaction.response.send_message("Você não possui dúvidas registradas.")
+            return
+
+        menu_opcoes = (
+            "Menu de Opções:\n"
+            "1. Viusualizar as dúvidas\n"
+            "2. Encerrar"
+        )
+
+        titulos = list(user_duvidas.keys())
+        enumeracao = "\n".join([f"{i + 1}. {titulo}" for i, titulo in enumerate(titulos)])
+
+        await interaction.response.send_message('Bem vindo')  
+
+        while True:
+            
+            await interaction.followup.send(menu_opcoes)
+
+            escolha_menu = await self.bot.wait_for('message')
+            escolha = escolha_menu.content.strip()
+
+            if escolha =='1':
+
+                while True:
+
+                    await interaction.followup.send(f"Escolha o número de um título para visualizar as mensagens e respostas associadas:\n{enumeracao}")
+
+
+
+                    escolha = await self.bot.wait_for('message')
+
+
+                    if not escolha.content.isdigit():  # Verifica se não é um número
+                        await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
+                    else:
+
+                        escolha_index = int(escolha.content) - 1
+
+                        if escolha_index < 0 or escolha_index >= len(titulos):
+                            await interaction.followup.send("Escolha inválida. Por favor, escolha um número válido.")
+                        
+                        else:
+
+                            titulo_escolhido = titulos[escolha_index]
+                            dados = user_duvidas.get(titulo_escolhido, {})
+                            mensagens = dados.get("mensagens", [])
+                            respostas = dados.get("respostas", [])
+
+                            mensagens_formatadas = "\n".join([f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
+                            respostas_formatadas = "\n".join([f"- {resp}" for resp in respostas]) if respostas else "Nenhuma resposta registrada."
+
+                            await interaction.followup.send(
+                                f"**{titulo_escolhido}**\n"
+                                f"**Mensagens:**\n{mensagens_formatadas}\n\n"
+                                f"**Respostas:**\n{respostas_formatadas}"
+                            )
+                            break
+
+            
+            elif escolha== '2':
+                await interaction.followup.send("Agradeço")
+                break
+            else :
+                await interaction.followup.send("Escolha um número válido!")
+
+     
+async def setup(bot):
+    await bot.add_cog(a(bot))
