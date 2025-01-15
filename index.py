@@ -15,7 +15,6 @@ async def carregar_cogs():
         if file.endswith(".py"):
             cog = file[:-3]
             await  bot.load_extension(f'Commands.{cog}')
-
       
 @bot.event
 async def on_ready():
