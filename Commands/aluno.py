@@ -18,8 +18,7 @@ class Aluno(commands.Cog):
         # Verifica se o usuário já tem um atendimento ativo
         if self.atendimento_ativo.get(user_id):
             await interaction.response.send_message(
-                "Você já tem um atendimento em andamento. Por favor, finalize o atendimento atual antes de iniciar outro.",
-                ephemeral=True
+                "Você já tem um atendimento em andamento. Por favor, finalize o atendimento atual antes de iniciar outro."
             )
             return
 
@@ -101,32 +100,34 @@ class Aluno(commands.Cog):
 
                     if not escolha.content.isdigit():
                         await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
-                    else:
-                        escolha_index = int(escolha.content) - 1
+                        continue
+                
+                    escolha_index = int(escolha.content) - 1
 
-                        if escolha_index < 0 or escolha_index >= len(titulos):
-                            await interaction.followup.send("Escolha inválida. Por favor, escolha um número válido.")
-                        else:
-                            titulo_escolhido = titulos[escolha_index]
-                            dados = user_duvidas.get(titulo_escolhido, {})
-                            mensagens = dados.get("mensagens", [])
-                            respostas = dados.get("respostas", [])
-                            nome = dados.get("nome")
-                            matricula = dados.get("matricula")
+                    if escolha_index < 0 or escolha_index >= len(titulos):
+                        await interaction.followup.send("Escolha inválida. Por favor, escolha um número válido.")
+                        continue
+                        
+                    titulo_escolhido = titulos[escolha_index]
+                    dados = user_duvidas.get(titulo_escolhido, {})
+                    mensagens = dados.get("mensagens", [])
+                    respostas = dados.get("respostas", [])
+                    nome = dados.get("nome")
+                    matricula = dados.get("matricula")
 
-                            mensagens_formatadas = "\n".join(
-                                [f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
-                            respostas_formatadas = "\n".join(
-                                [f"- {resp}" for resp in respostas]) if respostas else "Nenhuma resposta registrada."
+                    mensagens_formatadas = "\n".join(
+                        [f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
+                    respostas_formatadas = "\n".join(
+                        [f"- {resp}" for resp in respostas]) if respostas else "Nenhuma resposta registrada."
 
-                            await interaction.followup.send(
-                                f"**Nome:** {nome}\n**Matrícula:** {matricula}\n"
-                                f"**Título:** {titulo_escolhido}\n"
-                                f"**Mensagens:**\n{mensagens_formatadas}\n\n"
-                                f"**Respostas:**\n{respostas_formatadas}\n\n",
-                                view=MenuView(self.bot, self.aluno_cog)
-                            )
-                            break
+                    await interaction.followup.send(
+                        f"**Nome:** {nome}\n**Matrícula:** {matricula}\n"
+                        f"**Título:** {titulo_escolhido}\n"
+                        f"**Mensagens:**\n{mensagens_formatadas}\n\n"
+                        f"**Respostas:**\n{respostas_formatadas}\n\n"
+                    )
+                    await interaction.followup.send(view=MenuView(self.bot, self.aluno_cog))
+                    return
 
             @button(label="Finalizar atendimento", style=discord.ButtonStyle.danger)
             async def finalizar_atendimento(self, interaction: discord.Interaction, button):
