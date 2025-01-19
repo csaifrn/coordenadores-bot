@@ -33,8 +33,8 @@ class Coordenador(commands.Cog):
         await interaction.response.send_message("Bem-vindo!")
 
         class DemandaView(View):
-            def __init__(self, bot,aluno_cog,usuario_atual):
-                super().__init__()
+            def __init__(self, bot,aluno_cog,usuario_atual,timeout=30):
+                super().__init__(timeout=timeout)
                 self.bot = bot
                 self.aluno_cog = aluno_cog
                 self.usuario_atual=usuario_atual
@@ -46,6 +46,16 @@ class Coordenador(commands.Cog):
                 for item in self.children:
                     item.disabled = True
                 await interaction.response.edit_message(view=self)
+
+            async def on_timeout(self):
+                for item in self.children:
+                    item.disabled = True 
+                await self.message.edit(view=self)
+                self.aluno_cog.atendimento_ativo.pop(user_id, None)
+                await interaction.followup.send(
+                    "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
+                )
+                return
 
             @button(label="Atender próximo", style=discord.ButtonStyle.primary)
             async def atender_próximo(self, interaction: discord.Interaction, button):
@@ -68,31 +78,23 @@ class Coordenador(commands.Cog):
                     usuario_selecionado = self.usuario_atual
                 else:
                     
-                    # Agora, agrupando e ordenando as dúvidas de cada usuário com base no primeiro timestamp
-                    usuarios_com_duvidas = []
+                    usuarios_com_duvidas_ordenadas = [
+                        (usuario_name, min(dados["dados"].get("timestamp", datetime.max) for dados in duvidas))
+                        for usuario_name, duvidas in duvidas_agrupadas.items()
+                    ]
 
-                    for usuario_name, duvidas in duvidas_agrupadas.items():
-                        # Obtém o menor timestamp entre as dúvidas do usuário
-                        menor_timestamp = min(dados["dados"].get("timestamp", datetime.max) for dados in duvidas)
-                        usuarios_com_duvidas.append((usuario_name, menor_timestamp, duvidas))  # Armazena o usuário, timestamp e as dúvidas
-
-                    # Ordena os usuários pelo timestamp mais antigo da primeira dúvida
-                    usuarios_com_duvidas.sort(key=lambda x: x[1])
-
-                    # Agora, extraímos os usuários ordenados com todas as dúvidas deles
-                    usuarios_com_duvidas_ordenadas = []
-
-                    for usuario_name, _, duvidas in usuarios_com_duvidas:
-                        usuarios_com_duvidas_ordenadas.append((usuario_name, duvidas))
+                    usuarios_com_duvidas_ordenadas.sort(key=lambda x: x[1])
 
                     usuario_selecionado = usuarios_com_duvidas_ordenadas[0][0]
                     self.usuario_atual = usuario_selecionado
                         
                     if not usuarios_com_duvidas_ordenadas:
                         await interaction.followup.send("Não há dúvidas pendentes no momento.")
-                        await interaction.followup.send(view=DemandaView(self.bot, self.aluno_cog,self.usuario_atual))
+                        demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
+                        response_message = await interaction.followup.send(view=demanda_view)
+                        demanda_view.message = response_message
                         return
-                # Pegar o próximo usuário (primeiro da fila)
+                    
                 duvidas_usuario = duvidas_agrupadas[usuario_selecionado]
 
                 while True:
@@ -105,8 +107,16 @@ class Coordenador(commands.Cog):
                         "Escolha um título pela posição na lista para visualizar as mensagens."
                     )
 
-                    escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
-                    
+                    try:
+
+                        escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
+                    except asyncio.TimeoutError:
+
+                        self.aluno_cog.atendimento_ativo.pop(user_id, None)
+                        await interaction.followup.send(
+                            "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
+                        )
+                        return                    
                 
                     if not escolha_titulo.content.isdigit():  # Verifica se não é um número
                         await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
@@ -139,8 +149,16 @@ class Coordenador(commands.Cog):
 
                     respostas = []
                     while True:
-                        resposta_msg = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
-                        resposta = resposta_msg.content
+                        try:
+                            resposta_msg = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
+
+                            resposta = resposta_msg.content
+                        except asyncio.TimeoutError:
+                            self.aluno_cog.atendimento_ativo.pop(user_id, None)
+                            await interaction.followup.send(
+                                "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
+                            )
+                            return
 
                         if resposta.lower() == 'enviar':
                             break
@@ -154,7 +172,9 @@ class Coordenador(commands.Cog):
                         f"{chr(10).join([f'- {r}' for r in respostas])}\n"
                         f"O título foi atualizado com as novas respostas.\n\n"
                     )
-                    await interaction.followup.send(view=DemandaView(self.bot, self.aluno_cog,self.usuario_atual))
+                    demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
+                    response_message = await interaction.followup.send(view=demanda_view)
+                    demanda_view.message = response_message
                     return
                 
 
@@ -178,7 +198,9 @@ class Coordenador(commands.Cog):
 
                 if not duvidas_com_respostas:
                     await interaction.followup.send("Não há respostas registradas para exibir.")
-                    await interaction.followup.send(view=DemandaView(self.bot, self.aluno_cog,self.usuario_atual))
+                    demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
+                    response_message = await interaction.followup.send(view=demanda_view)
+                    demanda_view.message = response_message
                     return
 
                 # Lista usuários com dúvidas respondidas
@@ -192,9 +214,15 @@ class Coordenador(commands.Cog):
                     await interaction.followup.send(
                         f"Escolha um usuário para visualizar as respostas associadas às dúvidas:\n{lista_usuarios}"
                     )
+                    try:
 
-                    escolha_usuario = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
-
+                        escolha_usuario = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
+                    except asyncio.TimeoutError:
+                        self.aluno_cog.atendimento_ativo.pop(user_id, None)
+                        await interaction.followup.send(
+                            "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+                        )
+                        return
                     if not escolha_usuario.content.isdigit():
                         await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
                         continue
@@ -209,7 +237,6 @@ class Coordenador(commands.Cog):
                     usuario_selecionado = usuarios_com_respostas[escolha_usuario_index]
                     duvidas_usuario = duvidas_com_respostas[usuario_selecionado]
 
-                            # Lista títulos de dúvidas respondidas
                             
 
                     while True:
@@ -219,9 +246,15 @@ class Coordenador(commands.Cog):
                         await interaction.followup.send(
                             f"Escolha um título para visualizar as respostas:\n{lista_titulos}"
                         )
+                        try:
 
-                        escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
-
+                            escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
+                        except asyncio.TimeoutError:
+                            self.aluno_cog.atendimento_ativo.pop(user_id, None)
+                            await interaction.followup.send(
+                                "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+                            )
+                            return
                         if not escolha_titulo.content.isdigit():
                             await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
                             continue
@@ -253,8 +286,10 @@ class Coordenador(commands.Cog):
                             f"**Mensagens:**\n{mensagens_formatadas}\n\n"
                             f"**Respostas:**\n{respostas_formatadas}\n\n"
                         )
-                        await interaction.followup.send(view=DemandaView(self.bot, self.aluno_cog,self.usuario_atual))
-                        return
+                        demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
+                        response_message = await interaction.followup.send(view=demanda_view)
+                        demanda_view.message = response_message
+                        
                                                 
             @button(label="Finalizar demanda", style=discord.ButtonStyle.danger)
             async def finalizar_demanda(self, interaction: discord.Interaction, button):
@@ -268,7 +303,8 @@ class Coordenador(commands.Cog):
                 )
                 
                  
-        await interaction.followup.send(view=DemandaView(self.bot, self,self))
-
+        demanda_view = DemandaView(self.bot, self,self)
+        response_message = await interaction.followup.send(view=demanda_view)
+        demanda_view.message = response_message
 async def setup(bot):
     await bot.add_cog(Coordenador(bot))
