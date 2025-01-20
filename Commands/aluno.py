@@ -26,7 +26,7 @@ class Aluno(commands.Cog):
 
         # Marca o atendimento como ativo
         self.atendimento_ativo[user_id] = True
-        await interaction.response.send_message("Bem-visndo! Vamos iniciar o atendimento. Por favor, digite seu nome completo.")
+        await interaction.response.send_message("Bem-vindo! Vamos iniciar o atendimento. Por favor, digite seu nome completo.")
 
         try:
 
@@ -56,18 +56,19 @@ class Aluno(commands.Cog):
             def __init__(self, bot, aluno_cog,timeout=30):
                 super().__init__(timeout=timeout)
                 self.bot = bot
-                self.aluno_cog = aluno_cog  
+                self.aluno_cog = aluno_cog
+                self.atendimento_tipo = "aluno"  
 
             async def on_timeout(self):
-                for item in self.children:
-                    item.disabled = True 
-                await self.message.edit(view=self)
-                self.aluno_cog.atendimento_ativo.pop(user_id, None)
-                # Envia a mensagem de tempo esgotado
-                await interaction.followup.send(
-                    "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
-                )
-                return
+                if self.atendimento_tipo == "aluno":
+                    for item in self.children:
+                        item.disabled = True 
+                    await self.message.edit(view=self)
+                    self.aluno_cog.atendimento_ativo.pop(self.interaction.user.id, None)
+                    await self.interaction.followup.send(
+                        "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+                    )
+                    return
 
             
             
@@ -78,7 +79,7 @@ class Aluno(commands.Cog):
                 await interaction.response.edit_message(view=self)
                 
 
-            @button(label="Adicionar nova dúsvida", style=discord.ButtonStyle.primary)
+            @button(label="Adicionar nova dúvida", style=discord.ButtonStyle.primary)
             async def adicionar_duvida(self, interaction: discord.Interaction, button):
                 await self.disable_buttons_and_update(interaction)
 
