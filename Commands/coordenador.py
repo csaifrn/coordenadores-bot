@@ -16,18 +16,6 @@ class Coordenador(commands.Cog):
         self.bot = bot
         self.atendimento_ativo = False  # Dicionário para controlar atendimentos ativos por usuário
 
-
-    async def gerenciar_timeout(self, interaction, timeout=30):
-        try:
-            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=timeout)
-            return msg
-        except asyncio.TimeoutError:
-            self.atendimento_ativo = False
-            await interaction.followup.send(
-                "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
-            )
-            return None
-
     @app_commands.command(description="Visualizar títulos de dúvidas não respondidas e responder.")
     async def proximo_atendimento(self, interaction: discord.Interaction):
 
@@ -74,7 +62,7 @@ class DemandaView(View):
             item.disabled = True 
         if self.message:  
             await self.message.edit(content="Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
-,view=None)
+,view=self)
             self.aluno_cog.atendimento_ativo=False
             return
 
@@ -114,8 +102,7 @@ class DemandaView(View):
             if not usuarios_com_duvidas_ordenadas:
                 await interaction.followup.send("Não há dúvidas pendentes no momento.")
                 demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
-                message=await interaction.followup.send(view=demanda_view)
-                demanda_view.message= message
+                await interaction.followup.send(view=demanda_view)
                 return
 
             
@@ -131,19 +118,24 @@ class DemandaView(View):
                 "Escolha um título pela posição na lista para visualizar as mensagens."
             )
 
-            escolha_titulo = await self.aluno_cog.gerenciar_timeout(interaction, 10)
+            try:
+
+                escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
+
+            except asyncio.TimeoutError:
+
+                self.aluno_cog.atendimento_ativo=False
+                await interaction.followup.send(
+                    "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
+                )
+                return                    
         
-            if escolha_titulo is None:
-                return
-            escolha_titulo = escolha_titulo.content.strip()
-                   
-        
-            if not escolha_titulo.isdigit():  # Verifica se não é um número
+            if not escolha_titulo.content.isdigit():  # Verifica se não é um número
                 await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
                 continue
 
         
-            escolha_titulo_index = int(escolha_titulo) - 1
+            escolha_titulo_index = int(escolha_titulo.content) - 1
 
             if escolha_titulo_index < 0 or escolha_titulo_index >= len(duvidas_usuario):
                 await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
@@ -166,14 +158,16 @@ class DemandaView(View):
 
             respostas = []
             while True:
+                try:
+                    resposta_msg = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
 
-
-                resposta = await self.aluno_cog.gerenciar_timeout(interaction, 10)
-            
-                if resposta is None:
+                    resposta = resposta_msg.content
+                except asyncio.TimeoutError:
+                    self.aluno_cog.atendimento_ativo=False
+                    await interaction.followup.send(
+                        "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
+                    )
                     return
-                resposta = resposta.content.strip()
-                    
 
                 if resposta.lower() == 'enviar':
                     break
@@ -188,8 +182,7 @@ class DemandaView(View):
                 f"O título foi atualizado com as novas respostas.\n\n"
             )
             demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
-            message=await interaction.followup.send(view=demanda_view)
-            demanda_view.message= message
+            await interaction.followup.send(view=demanda_view)
             return
             
         
@@ -215,8 +208,7 @@ class DemandaView(View):
         if not duvidas_com_respostas:
             await interaction.followup.send("Não há respostas registradas para exibir.")
             demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
-            message=await interaction.followup.send(view=demanda_view)
-            demanda_view.message= message
+            await interaction.followup.send(view=demanda_view)
             return
             
             
@@ -232,21 +224,22 @@ class DemandaView(View):
             await interaction.followup.send(
                 f"Escolha um usuário para visualizar as respostas associadas às dúvidas:\n{lista_usuarios}"
             )
+            try:
 
-
-            escolha_usuario = await self.aluno_cog.gerenciar_timeout(interaction, 10)
-            
-            if escolha_usuario is None:
+                escolha_usuario = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user,timeout=30)
+            except asyncio.TimeoutError:
+                self.atendimento_ativo = False
+                await interaction.followup.send(
+                    "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+                )
                 return
-            escolha_usuario = escolha_usuario.content.strip()
-        
             
-            if not escolha_usuario.isdigit():
+            if not escolha_usuario.content.isdigit():
                 await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
                 continue
             
         
-            escolha_usuario_index = int(escolha_usuario) - 1
+            escolha_usuario_index = int(escolha_usuario.content) - 1
 
             if escolha_usuario_index < 0 or escolha_usuario_index >= len(usuarios_com_respostas):
                 await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
@@ -264,21 +257,22 @@ class DemandaView(View):
                 await interaction.followup.send(
                     f"Escolha um título para visualizar as respostas:\n{lista_titulos}"
                 )
+                try:
 
-
-                escolha_titulo = await self.aluno_cog.gerenciar_timeout(interaction, 10)
-            
-                if escolha_titulo is None:
+                    escolha_titulo = await self.bot.wait_for('message',check=lambda m: m.author == interaction.user)
+                except asyncio.TimeoutError:
+                    self.atendimento_ativo = False
+                    await interaction.followup.send(
+                        "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+                    )
                     return
-                escolha_titulo = escolha_titulo.content.strip()
-            
                 
-                if not escolha_titulo.isdigit():
+                if not escolha_titulo.content.isdigit():
                     await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
                     continue
             
 
-                escolha_titulo_index = int(escolha_titulo) - 1
+                escolha_titulo_index = int(escolha_titulo.content) - 1
 
                 if escolha_titulo_index < 0 or escolha_titulo_index >= len(duvidas_usuario):
                     await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
@@ -302,8 +296,7 @@ class DemandaView(View):
                     f"**Respostas:**\n{respostas_formatadas}\n\n"
                 )
                 demanda_view = DemandaView(self.bot, self.aluno_cog,self.usuario_atual)
-                message=await interaction.followup.send(view=demanda_view)
-                demanda_view.message= message
+                await interaction.followup.send(view=demanda_view)
 
                 return
                 
@@ -315,7 +308,7 @@ class DemandaView(View):
         await self.disable_buttons_and_update(interaction)
 
 
-        self.aluno_cog.atendimento_ativo = False
+        self.atendimento_ativo = False
 
         await interaction.followup.send(
             "Demanda finalizada com sucesso."
