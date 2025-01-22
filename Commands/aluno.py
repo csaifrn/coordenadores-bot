@@ -14,9 +14,10 @@ class Aluno(commands.Cog):
         self.atendimento_ativo = False # Dicionário para controlar atendimentos ativos por usuário
 
 
-    async def gerenciar_timeout(self, interaction, timeout=30):
+    async def gerenciar_timeout(self, interaction, timeout):
         try:
             msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=timeout)
+            
             return msg
         except asyncio.TimeoutError:
             self.atendimento_ativo = False
@@ -51,7 +52,7 @@ class Aluno(commands.Cog):
 
 
 class Menu_secundario(View):
-    def __init__(self, bot, aluno_cog,timeout=30):
+    def __init__(self, bot, aluno_cog,timeout=300):
         super().__init__(timeout=timeout)
         self.bot = bot
         self.aluno_cog = aluno_cog
@@ -61,6 +62,7 @@ class Menu_secundario(View):
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(view=self)
+        self.message=None
 
 
 
@@ -99,7 +101,7 @@ class Menu_secundario(View):
     
 
 class Menu_principal(View):
-    def __init__(self, bot, aluno_cog, timeout=30):
+    def __init__(self, bot, aluno_cog, timeout=300):
         super().__init__(timeout=timeout)
         self.bot = bot
         self.aluno_cog = aluno_cog
@@ -112,6 +114,13 @@ class Menu_principal(View):
 ,view=self)
             self.aluno_cog.atendimento_ativo=False
             return
+        
+
+    async def carregar_menu_secundrio(self,interaction):
+        menu_view =  Menu_secundario(self.bot, self.aluno_cog)
+        message = await interaction.followup.send(view=menu_view)
+        menu_view.message = message
+
             
 
 
@@ -120,6 +129,7 @@ class Menu_principal(View):
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(view=self)
+        self.message=None
         
 
     @button(label="Adicionar dúvida", style=discord.ButtonStyle.primary)
@@ -129,7 +139,7 @@ class Menu_principal(View):
 
         await interaction.followup.send("Por favor, digite o título da sua dúvida.")
 
-        titulo = await self.aluno_cog.gerenciar_timeout(interaction, 10)
+        titulo = await self.aluno_cog.gerenciar_timeout(interaction, 300)
         
         if titulo is None:
             return
@@ -152,7 +162,7 @@ class Menu_principal(View):
         while True:
             
 
-            mensagem= await self.aluno_cog.gerenciar_timeout(interaction, 10)
+            mensagem= await self.aluno_cog.gerenciar_timeout(interaction, 300)
             
             if mensagem is None:
                 del duvidas_por_usuario[interaction.user.name][titulo]
@@ -165,9 +175,7 @@ class Menu_principal(View):
 
             duvidas_por_usuario[interaction.user.name][titulo]["mensagens"].append(mensagem)
         
-        menu_view_secundario =  Menu_secundario(self.bot, self.aluno_cog)
-        message = await interaction.followup.send(view=menu_view_secundario)
-        menu_view_secundario.message = message
+        await  self.carregar_menu_secundrio(interaction)        
         return 
 
 
@@ -181,9 +189,8 @@ class Menu_principal(View):
 
         if not user_duvidas:
             await interaction.followup.send('Não há nenhuma dúvida.')
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            await  self.carregar_menu_secundrio(interaction)
+            
             return
 
         titulos = list(user_duvidas.keys())
@@ -194,7 +201,7 @@ class Menu_principal(View):
                 f"Escolha o número de um título para visualizar as mensagens e respostas associadas:\n{enumeracao}"
             )
             
-            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 10)
+            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 300)
             
             if escolha is None:
                 return
@@ -227,10 +234,9 @@ class Menu_principal(View):
                 f"**Mensagens:**\n{mensagens_formatadas}\n\n"
                 f"**Respostas:**\n{respostas_formatadas}\n\n"
             )
+            await  self.carregar_menu_secundrio(interaction)
 
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            
             return
 
     @button(label="Editar Dúvida", style=discord.ButtonStyle.success)
@@ -242,9 +248,7 @@ class Menu_principal(View):
 
         if not user_duvidas:
             await interaction.followup.send("Você não tem dúvidas registradas para editar.")
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            await  self.carregar_menu_secundrio(interaction)
             return
 
         
@@ -253,21 +257,19 @@ class Menu_principal(View):
             enumeracao = "\n".join([f"{i + 1}. {titulo}" for i, titulo in enumerate(titulos)])
             await interaction.followup.send(
                 f"Escolha o número de um título para editar uma mensagem associada:\n{enumeracao}"
-            )
-
-            
-            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 10)
-            
+            )            
+            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 300)
 
             if escolha is None:
                 return
-
+            
             escolha=escolha.content.strip()
             
 
             
             if not escolha.isdigit():
                 await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
+                
                 continue
         
             escolha_index = int(escolha) - 1
@@ -285,23 +287,23 @@ class Menu_principal(View):
 
             await interaction.followup.send("Por favor, digite o novo título da sua dúvida.")
 
-            titulo = await self.aluno_cog.gerenciar_timeout(interaction, 10)
+            titulo = await self.aluno_cog.gerenciar_timeout(interaction, 300)
             
             if titulo is None:
                 
                 return
-            titulo = titulo.content.strip()
+            novo_titulo = titulo.content.strip()
 
-            await interaction.followup.send(f"Pode digitar a mensagem que irá substitíla , envie quantas quiser.Para finalizar envie uma única mensagem com 'enviar'")
-            
-            titulo_escolhido= titulo
-            mensagens = user_duvidas[titulo_escolhido]["mensagens"]
+            await interaction.followup.send(f"Pode digitar a mensagem que irá substituíla , envie quantas quiser.Para finalizar envie uma única mensagem com 'enviar'")
+
+            user_duvidas[novo_titulo]= user_duvidas.pop(titulo_escolhido)
+            mensagens = user_duvidas[novo_titulo]["mensagens"]
             mensagens.clear()
 
             while True:
 
                 
-                nova_msg =  await self.aluno_cog.gerenciar_timeout(interaction, 10)
+                nova_msg =  await self.aluno_cog.gerenciar_timeout(interaction, 300)
                 
                 if nova_msg is None:
                     return
@@ -313,15 +315,15 @@ class Menu_principal(View):
 
                 mensagens.append(nova_msg)
 
-            nova_msg_formatadas ="\n".join(
-                                    [f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
-                
+            nova_msg_formatadas ="\n".join([f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
 
-            await interaction.followup.send(f"Mensagem atualizada com sucesso para: {nova_msg_formatadas}")
+            await interaction.followup.send(f"**Dúvida atualizada com sucesso**\n"
+                                            f"**Novo título:** {novo_titulo}\n" 
+                                            f"**Novas mensagens:** \n{nova_msg_formatadas}"
+                                            )
+            await  self.carregar_menu_secundrio(interaction)
             
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            
             return
 
 
@@ -333,9 +335,7 @@ class Menu_principal(View):
 
         if not user_duvidas:
             await interaction.followup.send("Você não tem dúvidas registradas para deletar.")
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            await  self.carregar_menu_secundrio(interaction)
             return
 
         while True:
@@ -347,7 +347,7 @@ class Menu_principal(View):
             )
 
             
-            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 10)
+            escolha = await self.aluno_cog.gerenciar_timeout(interaction, 300)
             
             if escolha is None:
                 return
@@ -370,13 +370,11 @@ class Menu_principal(View):
             
 
             await interaction.followup.send(f"Dúvida {titulo_escolhido} excluída com sucesso!")
+            await  self.carregar_menu_secundrio(interaction)
             
-            menu_view =  Menu_secundario(self.bot, self.aluno_cog)
-            message = await interaction.followup.send(view=menu_view)
-            menu_view.message = message
+            
             return
             
 
 async def setup(bot):
     await bot.add_cog(Aluno(bot))
-
