@@ -32,7 +32,7 @@ class Aluno(commands.Cog):
         # Verifica se o usuário já tem um atendimento ativo
         if self.atendimento_ativo:
             await interaction.response.send_message(
-                "Você já tem um atendimento em andamento. Por favor, finalize o atendimento atual antes de iniciar outro."
+                "Você já tem um atendimento em andamento. Por favor, digite 'finalizar' para encerrar antes de iniciar outro."
             )
             return
         
@@ -144,6 +144,11 @@ class Menu_principal(View):
         if titulo is None:
             return
         titulo = titulo.content.strip()
+        if titulo == 'finalizar':
+            self.aluno_cog.atendimento_ativo = False
+            await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+            return
+        
 
 
         if interaction.user.name not in duvidas_por_usuario:
@@ -164,10 +169,16 @@ class Menu_principal(View):
 
             mensagem= await self.aluno_cog.gerenciar_timeout(interaction, 300)
             
+            
             if mensagem is None:
                 del duvidas_por_usuario[interaction.user.name][titulo]
                 return
             mensagem =mensagem.content.strip()
+            if mensagem == 'finalizar':
+                self.aluno_cog.atendimento_ativo = False
+                await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+                del duvidas_por_usuario[interaction.user.name][titulo]
+                return
             
 
             if mensagem.lower() == "enviar":
@@ -206,6 +217,10 @@ class Menu_principal(View):
             if escolha is None:
                 return
             escolha=escolha.content.strip()
+            if escolha == 'finalizar':
+                self.aluno_cog.atendimento_ativo = False 
+                await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+                break
             
 
             if not escolha.isdigit():
@@ -264,6 +279,10 @@ class Menu_principal(View):
                 return
             
             escolha=escolha.content.strip()
+            if escolha == 'finalizar':
+                self.aluno_cog.atendimento_ativo = False 
+                await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+                break
             
 
             
@@ -309,6 +328,10 @@ class Menu_principal(View):
                     return
                 
                 nova_msg=nova_msg.content.strip()
+                if nova_msg == 'finalizar':
+                    self.aluno_cog.atendimento_ativo = False 
+                    await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+                    break
 
                 if nova_msg.lower() == "enviar":
                     break
@@ -353,6 +376,10 @@ class Menu_principal(View):
                 return
 
             escolha=escolha.content.strip()
+            if escolha == 'finalizar':
+                self.aluno_cog.atendimento_ativo = False 
+                await interaction.followup.send("Atendimento finalizado com sucesso! Você pode iniciar um novo atendimento com o comando `/iniciar_atendimento`.")
+                break
 
             if not escolha.isdigit():
                 await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
