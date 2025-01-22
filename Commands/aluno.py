@@ -68,9 +68,7 @@ class Menu_secundario(View):
         for item in self.children:
             item.disabled = True  
         if self.message:    
-            await self.message.edit(content="Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`.",view=None)
-            self.message = None  # Certifique-se de remover o vínculo com a mensagem antiga
-
+            await self.message.edit(content="Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`.",view=self)
             self.aluno_cog.atendimento_ativo=False
             return
         
@@ -111,9 +109,7 @@ class Menu_principal(View):
             item.disabled = True 
         if self.message: 
             await self.message.edit(content="Tempo esgotado ! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
-,view=None)
-            self.message = None  # Certifique-se de remover o vínculo com a mensagem antiga
-
+,view=self)
             self.aluno_cog.atendimento_ativo=False
             return
             
@@ -296,10 +292,10 @@ class Menu_principal(View):
                 return
             titulo = titulo.content.strip()
 
-            await interaction.followup.send(f"Pode digitar a mensagem que irá substituíla , envie quantas quiser .Para finalizar envie uma única mensagem com 'enviar'")
+            await interaction.followup.send(f"Pode digitar a mensagem que irá substitíla , envie quantas quiser.Para finalizar envie uma única mensagem com 'enviar'")
             
-            user_duvidas[titulo]=user_duvidas.pop(titulo_escolhido)
-            mensagens=user_duvidas[titulo]['mensagens']
+            titulo_escolhido= titulo
+            mensagens = user_duvidas[titulo_escolhido]["mensagens"]
             mensagens.clear()
 
             while True:
@@ -317,7 +313,8 @@ class Menu_principal(View):
 
                 mensagens.append(nova_msg)
 
-            nova_msg_formatadas ="\n".join([f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
+            nova_msg_formatadas ="\n".join(
+                                    [f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
                 
 
             await interaction.followup.send(f"Mensagem atualizada com sucesso para: {nova_msg_formatadas}")
@@ -382,3 +379,5 @@ class Menu_principal(View):
 
 async def setup(bot):
     await bot.add_cog(Aluno(bot))
+
+
