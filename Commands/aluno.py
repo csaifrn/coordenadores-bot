@@ -377,6 +377,6 @@ class Menu_principal(View):
             return
             
 
-
-
+async def setup(bot):
+    await bot.add_cog(Aluno(bot))
 
