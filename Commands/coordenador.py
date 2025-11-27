@@ -1,261 +1,418 @@
-
-
-from discord.ext import commands
+from datetime import datetime, timedelta
 import discord
-from discord import app_commands
+from discord.ext import commands
 import asyncio
-from datetime import datetime
 from discord import app_commands, Interaction, ButtonStyle
-from discord.ui import View, button
+from discord.ui import View, button, Select, select
 
-
-from Commands.aluno import duvidas_por_usuario  # Importa o dicionário compartilhado com as dúvidas
+import asyncio
+from database.coordenador_banco import (
+    obter_duvidas, 
+    registrar_resposta_no_banco,
+    obter_duvidas_respondidas
+)
 
 class Coordenador(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.atendimento_ativo = False  # Dicionário para controlar atendimentos ativos por usuário
+        self.usuario_atual = None
+        self.atendimento_ativo = {}
+        self.atendimento_pendente = {}
 
-    async def gerenciar_timeout(self, interaction, timeout):
-        try:
-            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=timeout)
-            return msg
-        except asyncio.TimeoutError:
-            self.atendimento_ativo = False
-            await interaction.followup.send(
-                "Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
-            )
-            return None
-
-    @app_commands.command(description="Visualizar títulos de dúvidas não respondidas e responder.")
+    @app_commands.command(description="Responder dúvidas!")
     async def proximo_atendimento(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
 
-
-        if self.atendimento_ativo:
+        if self.atendimento_ativo.get(user_id, False):
             await interaction.response.send_message(
-                "Você já tem um atendimento em andamento. Por favor, finalize o atendimento atual antes de iniciar outro."
+                "Você já tem um atendimento em andamento. Por favor, continue o que você estava fazendo."
             )
             return
+        self.atendimento_ativo[user_id] = True
 
-        # Marca o atendimento como ativo
-        self.atendimento_ativo = True
-        
+    
         await interaction.response.send_message("Bem-vindo!")
-
-
-        demanda_view = DemandaView(self.bot,self,self)
-        message=await interaction.followup.send(view=demanda_view)
-        demanda_view.message=message
-
-
+        demanda_view = DemandaView(self.bot, self, user_id)
+        message = await interaction.followup.send(view=demanda_view)
+        demanda_view.message = message
 
 
 class DemandaView(View):
-    def __init__(self, bot,aluno_cog,usuario_atual,timeout=300):
+    def __init__(self, bot, aluno_cog, user_id, timeout=600):
         super().__init__(timeout=timeout)
         self.bot = bot
         self.aluno_cog = aluno_cog
-        self.usuario_atual=usuario_atual
-    
+        self.user_id = user_id
+        self.show_interacao = ShowInteracao(self.bot, self.aluno_cog, self.user_id)
+
+        if not self.aluno_cog.atendimento_pendente:
+            self.remove_item(self.continuar_atendimento)
+        else:
+            self.remove_item(self.atender_proximo)
+
     async def disable_buttons_and_update(self, interaction: discord.Interaction):
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(view=self)
-        self.message=None
+        self.message = None
 
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True 
         if self.message:  
-            await self.message.edit(content="Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`."
-,view=self)
-            self.aluno_cog.atendimento_ativo=False
-            return
+            await self.message.edit(
+                content="Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/proximo_atendimento`.",
+                view=self
+            )
+            self.aluno_cog.atendimento_ativo[self.user_id] = False
+            del self.aluno_cog.atendimento_ativo[self.user_id]
 
-    
+    @button(label="Continuar Atendimento", style=discord.ButtonStyle.primary)
+    async def continuar_atendimento(self, interaction: discord.Interaction, button):
+        await self.disable_buttons_and_update(interaction)
+        await self.show_interacao.atender_próximo(interaction)
 
     @button(label="Atender próximo", style=discord.ButtonStyle.primary)
-    async def atender_próximo(self, interaction: discord.Interaction, button):
+    async def atender_proximo(self, interaction: discord.Interaction, button):
         await self.disable_buttons_and_update(interaction)
-        
+        await self.show_interacao.atender_próximo(interaction)
 
-        duvidas_agrupadas = {}
-        for usuario_name, duvidas in duvidas_por_usuario.items():
-            duvidas_sem_resposta = []
-            for titulo, dados in duvidas.items():
-                if not dados.get("respostas"):  
-                    duvidas_sem_resposta.append({"titulo": titulo, "dados": dados})
-            if duvidas_sem_resposta:
-                duvidas_agrupadas[usuario_name] = duvidas_sem_resposta
-        
-        
+    @discord.ui.button(label="Atendimentos Aberto", style=discord.ButtonStyle.green)
+    async def visualizar_abertos(self, interaction: discord.Interaction, button):
+        await self.disable_buttons_and_update(interaction)
+        duvida_pendente=self.aluno_cog.atendimento_pendente
+        await self.show_interacao.show_visualizar_respostas_abertas(interaction, duvida_pendente)
 
-        if self.usuario_atual in duvidas_agrupadas:
-            usuario_selecionado = self.usuario_atual
+
+    @discord.ui.button(label="Atendimentos Fechados", style=discord.ButtonStyle.red)
+    async def visualizar_fechados(self, interaction: discord.Interaction, button):
+        await self.disable_buttons_and_update(interaction)
+        duvidas_com_respostas = obter_duvidas_respondidas()
+        await self.show_interacao.show_visualizar_respostas_fechadas(interaction, duvidas_com_respostas)
+
+    @button(label="Finalizar demanda", style=discord.ButtonStyle.danger)
+    async def finalizar_demanda(self, interaction: discord.Interaction, button):
+        await self.disable_buttons_and_update(interaction)
+        self.aluno_cog.atendimento_ativo[self.user_id] = False 
+        del self.aluno_cog.atendimento_ativo[self.user_id]
+        await interaction.followup.send("Demanda finalizada com sucesso.")
+
+class ShowInteracao():
+    def __init__(self, bot, aluno_cog, user_id):
+        super().__init__()
+        self.bot = bot
+        self.aluno_cog = aluno_cog
+        self.user_id = user_id
+
+    async def load_demanda_view(self, interaction):
+        demanda_view = DemandaView(self.bot, self.aluno_cog, self.user_id)
+        message = await interaction.followup.send(view=demanda_view)
+        demanda_view.message = message
+
+    
+    async def gerenciar_timeout(self, interaction):
+        try:
+            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=20)
+            return msg
+        except asyncio.TimeoutError:
+            self.aluno_cog.atendimento_ativo[self.user_id] = False
+            del self.aluno_cog.atendimento_ativo[self.user_id]
+
+            await interaction.followup.send(
+                "⏳ Tempo esgotado! O atendimento foi encerrado. Você pode iniciar novamente usando `/iniciar_atendimento`."
+            )
+            return None
+        
+    async def atender_próximo(self, interaction: discord.Interaction):
+
+        duvidas_status_local = {}
+
+        if self.aluno_cog.atendimento_pendente:
+            usuario_selecionado = next(iter(self.aluno_cog.atendimento_pendente))
+            duvidas_status_local = self.aluno_cog.atendimento_pendente
         else:
-            
-            usuarios_com_duvidas_ordenadas = [
-                (usuario_name, min(dados["dados"].get("timestamp", datetime.max) for dados in duvidas))
-                for usuario_name, duvidas in duvidas_agrupadas.items()
-            ]
+            duvidas_agrupadas = obter_duvidas()
 
-            usuarios_com_duvidas_ordenadas.sort(key=lambda x: x[1])
-
-            usuario_selecionado = usuarios_com_duvidas_ordenadas[0][0]
-            self.usuario_atual = usuario_selecionado
-                
-            if not usuarios_com_duvidas_ordenadas:
-                await interaction.followup.send("Não há dúvidas pendentes no momento.")
-                demanda_view = DemandaView(self.bot,self.aluno_cog,self.usuario_atual)
-                message=await interaction.followup.send(view=demanda_view)
-                demanda_view.message=message
+            if not duvidas_agrupadas:
+                await interaction.user.send("✅ Não há dúvidas pendentes no momento.")
+                await self.load_demanda_view(interaction)
                 return
 
-            
-        duvidas_usuario = duvidas_agrupadas[usuario_selecionado]
+            usuario_selecionado = next(iter(duvidas_agrupadas))
+            duvidas_usuario = list(duvidas_agrupadas[usuario_selecionado].keys())
+
+            duvidas_status_local = {
+                usuario_selecionado: {
+                    titulo: {
+                        "status": "Não Respondida",
+                        "conteudo": duvidas_agrupadas[usuario_selecionado][titulo]
+                    }
+                    for titulo in duvidas_usuario
+                }
+            }
+            self.aluno_cog.atendimento_pendente = duvidas_status_local
 
         while True:
-            lista_titulos = "\n".join([
-            f"{i + 1}. {item['titulo']}"
-            for i, item in enumerate(duvidas_usuario)
-                                                        ])
-            await interaction.followup.send(
-                f"Dúvidas de {usuario_selecionado}:\n{lista_titulos}\n"
-                "Escolha um título pela posição na lista para visualizar as mensagens."
+
+            duvidas_usuario = list(duvidas_status_local[usuario_selecionado].keys())
+
+            todas_respondidas = all(
+                info["status"] == "Respondida" for info in duvidas_status_local[usuario_selecionado].values()
             )
 
-            escolha_titulo = await self.aluno_cog.gerenciar_timeout(interaction, 300)
-        
+            titulos_com_status = [
+                f"{i + 1}. **{titulo}** {' - Respondida ✅' if duvidas_status_local[usuario_selecionado][titulo]['status'] == 'Respondida' else '- Não Respondida ❌'}"
+                for i, titulo in enumerate(duvidas_usuario)
+            ]
+
+            lista_titulos = "\n".join([
+                f"📝 **Dúvidas de {usuario_selecionado}:**\n",
+                "\n".join(titulos_com_status) if titulos_com_status else "Nenhuma dúvida pendente.",
+                "\n🔴 **Digite `0` para fechar o atendimento.**" if todas_respondidas else ""
+            ])
+
+            await interaction.user.send(
+                f"{lista_titulos}\n\n"
+                "🔎 **Escolha o número do título para responder a dúvida correspondente.**"
+            )
+
+            escolha_titulo = await self.gerenciar_timeout(interaction)
             if escolha_titulo is None:
                 return
             escolha_titulo = escolha_titulo.content.strip()
 
-                   
-        
-            if not escolha_titulo.isdigit():  # Verifica se não é um número
-                await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
+            if escolha_titulo == "0":
+                if todas_respondidas:
+                    self.aluno_cog.atendimento_pendente = {}
+                    await interaction.user.send("✅ Atendimento encerrado!")
+                    await self.load_demanda_view(interaction)
+                    break
+
+            if not escolha_titulo.isdigit():
+                await interaction.user.send("Escolha inválida. Por favor, envie um número.")
                 continue
 
-        
             escolha_titulo_index = int(escolha_titulo) - 1
 
             if escolha_titulo_index < 0 or escolha_titulo_index >= len(duvidas_usuario):
-                await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
+                await interaction.user.send("Escolha inválida. Por favor, tente novamente.")
                 continue
 
             titulo_selecionado = duvidas_usuario[escolha_titulo_index]
-            titulo = titulo_selecionado["titulo"]
-            dados = titulo_selecionado["dados"]
-            
-            mensagens = dados.get("mensagens", [])
-            
-            mensagens_formatadas = "\n".join([f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
+            duvida = duvidas_status_local[usuario_selecionado][titulo_selecionado]["conteudo"]
 
-            await interaction.followup.send(
-                f"**Título : {titulo}**\n\n"
-                f"**Mensagens:**\n{mensagens_formatadas}\n\n"
-                "Agora você pode responder a essa dúvida. Envie suas respostas.\n"
-                "Envie uma mensagem com somente 'enviar' para encerrar."
+            mensagens = duvida['mensagem']
+            resposta = duvida.get('resposta', '')
+            data_duvida = duvida['timestamp_duvida']
+            formatted_timestamp = data_duvida.split('.')[0]
+
+            mensagem_resposta = (
+                f"**📝 Dúvida Selecionada**\n"
+                f"────────────────────────────────\n\n"
+                f"**Título:** {titulo_selecionado}\n"
+                f"**Data de Criação:** {formatted_timestamp}\n\n"
+                f"**Mensagens:**\n"
+                f"```{mensagens}```\n"
             )
+            if resposta:
+                mensagem_resposta += (
+                    f"\n**Respostas Anteriores:**\n"
+                    f"```{resposta}```\n"
+                    "Deseja alterar a resposta? Digite **SIM** para alterar ou **NÃO** para manter:\n"
+                )
 
+            await interaction.user.send(mensagem_resposta)  # Envia apenas uma vez
+
+
+            if resposta:
+                
+
+                while True:
+                    escolha = await self.gerenciar_timeout(interaction)
+
+                    if escolha is None:
+                        return
+
+                    escolha = escolha.content.strip().upper()
+
+                    if escolha == "SIM":
+                        break 
+                    elif escolha == "NÃO":
+                        await self.atender_próximo(interaction)  
+                        return 
+                    else:
+                        await interaction.user.send("❌ Opção inválida! Digite **SIM** para alterar ou **NÃO** para manter.")
+
+
+            await interaction.followup.send(f"\n✏️ Envie quantas mensagens forem necessárias para sua resposta.\n\n"
+                                        "🔔 Quando terminar, digite uma única mensagem com `enviar` para encaminhar ao coordenador.\n")
+        
             respostas = []
             while True:
+                resposta = await self.gerenciar_timeout(interaction)
 
-                resposta  = await self.aluno_cog.gerenciar_timeout(interaction, 300)
-        
-                if resposta  is None:
+                if resposta is None:
                     return
-                resposta = resposta.content.strip()
                 
+                resposta = resposta.content.strip()
 
                 if resposta.lower() == 'enviar':
+                    if not respostas:
+                        await interaction.user.send('⚠️ Você não adicionou nenhuma mensagem, sua resposta não foi salva!')
+                        continue
                     break
-                
                 respostas.append(resposta)
 
-            # Adicionar respostas ao título
-            dados["respostas"].extend(respostas)
+            respostas_coordenador = "\n".join([f"{msg}" for msg in respostas])
+            registrar_resposta_no_banco(usuario_selecionado, titulo_selecionado, respostas_coordenador)
+            self.aluno_cog.atendimento_pendente[usuario_selecionado][titulo_selecionado]["status"] = "Respondida"
+            self.aluno_cog.atendimento_pendente[usuario_selecionado][titulo_selecionado]['conteudo']["resposta"] = respostas_coordenador
+
+            duvidas_status_local[usuario_selecionado] = self.aluno_cog.atendimento_pendente[usuario_selecionado]
+
             await interaction.followup.send(
-                f"Respostas adicionadas ao título **{titulo}**:\n"
-                f"{chr(10).join([f'- {r}' for r in respostas])}\n"
-                f"O título foi atualizado com as novas respostas.\n\n"
+                f"✅ **Respostas adicionadas com sucesso!**\n\n"
+                f"📌 **Título:** {titulo_selecionado}\n\n"
+                f"📝 **Respostas:**\n{respostas_coordenador}\n\n"
             )
-            demanda_view = DemandaView(self.bot,self.aluno_cog,self.usuario_atual)
-            message=await interaction.followup.send(view=demanda_view)
-            demanda_view.message=message
+
+
+
+    async def show_visualizar_respostas_abertas(self, interaction: discord.Interaction,duvidas):
+        if not duvidas:
+            await interaction.user.send("✅ Não há atendimento aberto.")
+            await self.load_demanda_view(interaction)
             return
+
+
+        usuario_selecionado = next(iter(duvidas))
+        duvidas_status_local = duvidas
+
+        while True:
+
+            duvidas_usuario = list(duvidas_status_local[usuario_selecionado].keys())
+
             
-        
+
+            titulos_com_status = [
+                f"{i + 1}. **{titulo}** {' - Respondida ✅' if duvidas_status_local[usuario_selecionado][titulo]['status'] == 'Respondida' else '- Não Respondida ❌'}"
+                for i, titulo in enumerate(duvidas_usuario)
+            ]
+
+            lista_titulos = "\n".join([
+                f"📝 **Dúvidas de {usuario_selecionado}:**\n",
+                "\n".join(titulos_com_status) if titulos_com_status else "Nenhuma dúvida pendente.",
+            ])
+
+            await interaction.user.send(
+                f"{lista_titulos}\n\n"
+                "🔎 **Escolha o número do título para visualizar a dúvida correspondente.**"
+            )
+
+            escolha_titulo = await self.gerenciar_timeout(interaction)
+            
+            if escolha_titulo is None:
+                return
+            escolha_titulo = escolha_titulo.content.strip()
+
+            
+
+            if not escolha_titulo.isdigit():
+                await interaction.user.send("Escolha inválida. Por favor, envie um número.")
+                continue
+
+            escolha_titulo_index = int(escolha_titulo) - 1
+
+            if escolha_titulo_index < 0 or escolha_titulo_index >= len(duvidas_usuario):
+                await interaction.user.send("Escolha inválida. Por favor, tente novamente.")
+                continue
+
+            titulo_selecionado = duvidas_usuario[escolha_titulo_index]
+            duvida = duvidas_status_local[usuario_selecionado][titulo_selecionado]["conteudo"] 
+
+            mensagens = duvida['mensagem']
+            resposta = duvida.get('resposta')  
+            data_duvida = duvida['timestamp_duvida']
+            formatted_timestamp = data_duvida.split('.')[0]
 
 
-    @button(label="Visualizar respostas", style=discord.ButtonStyle.secondary)
-    async def visualizar_respostas(self, interaction: discord.Interaction, button):
-        await self.disable_buttons_and_update(interaction)
+            mensagem_resposta = (
+                f"**📝 Dúvida Selecionada**\n"
+                f"────────────────────────────────\n\n"
+                f"**Título:** {titulo_selecionado}\n"
+                f"**Data de Criação:** {formatted_timestamp}\n\n"
+                f"**Mensagens:**\n"
+                f"```{mensagens}```\n"
+            )
 
-        # Filtra as dúvidas que possuem respostas
-        duvidas_com_respostas = {}
-        for usuario_name, duvidas in duvidas_por_usuario.items():
-            duvidas_com_resposta = []
-            for titulo, dados in duvidas.items():
-                if dados.get("respostas"):  # Verifica se há respostas
-                    duvidas_com_resposta.append({"titulo": titulo, "dados": dados})
-            if duvidas_com_resposta:
-                duvidas_com_resposta.sort(key=lambda d: d["dados"]["timestamp"])
-                duvidas_com_respostas[usuario_name] = duvidas_com_resposta
-        
+            if resposta:
+                mensagem_resposta += (
+                    f"\n**Respostas:**\n"
+                    f"```{resposta}```\n"
+                )
+
+            await interaction.user.send(mensagem_resposta)
+
+           
+            await self.load_demanda_view(interaction)
+
+            break
+
+            
+            
+    
+
+    async def show_visualizar_respostas_fechadas(self, interaction: discord.Interaction,duvidas):
+
+        duvidas_com_respostas = duvidas
 
         if not duvidas_com_respostas:
-            await interaction.followup.send("Não há respostas registradas para exibir.")
-            demanda_view = DemandaView(self.bot,self.aluno_cog,self.usuario_atual)
-            message=await interaction.followup.send(view=demanda_view)
-            demanda_view.message=message
+            await interaction.user.send("Não há respostas registradas para exibir.")
+            await self.load_demanda_view(interaction)
             return
-            
-            
-
-        # Lista usuários com dúvidas respondidas
-        usuarios_com_respostas = sorted(
-            duvidas_com_respostas.keys(),
-            key=lambda usuario: duvidas_com_respostas[usuario][0]["dados"]["timestamp"])
         
-    
+
+        usuarios_com_respostas = list(duvidas_com_respostas.keys())
+        lista_usuarios = "\n".join([f"{i + 1}. {user}" for i, user in enumerate(usuarios_com_respostas)])
+        await interaction.user.send(
+            f"Escolha um usuário para visualizar as respostas associadas às dúvidas:\n{lista_usuarios}"
+        )
+
         while True:
-            lista_usuarios = "\n".join([f"{i + 1}. {user}" for i, user in enumerate(usuarios_com_respostas)])
-            await interaction.followup.send(
-                f"Escolha um usuário para visualizar as respostas associadas às dúvidas:\n{lista_usuarios}"
-            )
-            escolha_usuario  = await self.aluno_cog.gerenciar_timeout(interaction, 300)
+            
+            escolha_usuario  =await self.gerenciar_timeout(interaction)
         
             if escolha_usuario is None:
                 return
-            escolha_usuario = escolha_usuario.strip() 
+            escolha_usuario = escolha_usuario.content.strip() 
             
             
             if not escolha_usuario.isdigit():
-                await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
+                await interaction.user.send("Escolha inválida. Por favor, envie um número.")
                 continue
             
         
             escolha_usuario_index = int(escolha_usuario) - 1
 
             if escolha_usuario_index < 0 or escolha_usuario_index >= len(usuarios_com_respostas):
-                await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
+                await interaction.user.send("Escolha inválida. Por favor, tente novamente.")
                 continue
 
             usuario_selecionado = usuarios_com_respostas[escolha_usuario_index]
-            duvidas_usuario = duvidas_com_respostas[usuario_selecionado]
-
-                    
-
-            while True:
-                lista_titulos = "\n".join([f"{i + 1}. {item['titulo']}" for i, item in enumerate(duvidas_usuario)])
+            duvidas_usuario = list(duvidas_com_respostas[usuario_selecionado].keys())
+            lista_titulos = "\n".join([
+                            f"{i + 1}. {titulo}"  
+                            for i, titulo in enumerate(duvidas_usuario)  
+                            ])
 
             
-                await interaction.followup.send(
-                    f"Escolha um título para visualizar as respostas:\n{lista_titulos}"
-                )
+            await interaction.user.send(
+                f"Escolha um título para visualizar as respostas:\n{lista_titulos}"
+            )
+            while True:
+                
 
-                escolha_titulo  = await self.aluno_cog.gerenciar_timeout(interaction, 300)
+                escolha_titulo  = await self.gerenciar_timeout(interaction)
         
                 if escolha_titulo is None:
                     return
@@ -263,52 +420,38 @@ class DemandaView(View):
                 
                 
                 if not escolha_titulo.isdigit():
-                    await interaction.followup.send("Escolha inválida. Por favor, envie um número.")
+                    await interaction.user.send("Escolha inválida. Por favor, envie um número.")
                     continue
             
 
                 escolha_titulo_index = int(escolha_titulo) - 1
 
                 if escolha_titulo_index < 0 or escolha_titulo_index >= len(duvidas_usuario):
-                    await interaction.followup.send("Escolha inválida. Por favor, tente novamente.")
+                    await interaction.user.send("Escolha inválida. Por favor, tente novamente.")
                     continue
                 
                 titulo_selecionado = duvidas_usuario[escolha_titulo_index]
-                titulo = titulo_selecionado["titulo"]
-                dados = titulo_selecionado["dados"]
-                mensagens= dados.get("mensagens", [])
-                respostas = dados.get("respostas", [])
-                
-                mensagens_formatadas = "\n".join(
-                [f"- {msg}" for msg in mensagens]) if mensagens else "Nenhuma mensagem registrada."
-                respostas_formatadas = "\n".join(
-                [f"- {resp}" for resp in respostas]) if respostas else "Nenhuma resposta registrada."
+                dados = duvidas_com_respostas[usuario_selecionado].get(titulo_selecionado)
+                mensagens=dados.get("mensagem")
+                respostas= dados.get("resposta")
+                data_resposta=dados.get("timestamp_resposta")
+                formatted_timestamp = data_resposta.split('.')[0]  
 
-                            
-                await interaction.followup.send(
-                    f"**Título:** {titulo}\n"
-                    f"**Mensagens:**\n{mensagens_formatadas}\n\n"
-                    f"**Respostas:**\n{respostas_formatadas}\n\n"
-                )
-                demanda_view = DemandaView(self.bot,self.aluno_cog,self.usuario_atual)
-                message=await interaction.followup.send(view=demanda_view)
-                demanda_view.message=message
+                await interaction.user.send(
+                            f"**📝 Dúvida Selecionada**\n"
+                            f"────────────────────────────────\n\n"
+                            f"**Título:** {titulo_selecionado}\n"
+                            f"**Data de Criação da resposta:** {formatted_timestamp}\n\n"
+                            f"**Mensagens:**\n"
+                            f"```{mensagens}```\n\n"
+                            f"**Respostas:**\n"
+                            f"```{respostas}```\n\n"
+                            )
+                
+                await self.load_demanda_view(interaction)
+
                 return
-                
 
-    
-                                        
-    @button(label="Finalizar demanda", style=discord.ButtonStyle.danger)
-    async def finalizar_demanda(self, interaction: discord.Interaction, button):
-        await self.disable_buttons_and_update(interaction)
-
-
-        self.aluno_cog.atendimento_ativo = False
-
-        await interaction.followup.send(
-            "Demanda finalizada com sucesso."
-        )
-        
 
 async def setup(bot):
     await bot.add_cog(Coordenador(bot))
