@@ -6,7 +6,7 @@ from discord import app_commands, Interaction, ButtonStyle
 from discord.ui import View, button, Select, select
 
 import asyncio
-from database.coordenador_banco import (
+from bot_coordenador.coordenador_banco import (
     obter_duvidas, 
     registrar_resposta_no_banco,
     obter_duvidas_respondidas

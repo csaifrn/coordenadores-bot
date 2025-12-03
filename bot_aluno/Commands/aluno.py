@@ -7,7 +7,7 @@ from discord import app_commands, Interaction, ButtonStyle
 from discord.ui import View, button,Select, select
 
 import asyncio
-from database.aluno_banco import (
+from bot_aluno.aluno_banco import (
 registrar_duvida_no_banco,
 registrar_aluno_no_banco,
 atualizar_mensagens,

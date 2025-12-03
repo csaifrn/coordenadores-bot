@@ -13,10 +13,8 @@ intents1.members = True
 
 bot1 = commands.Bot(command_prefix='!', intents=intents1)
 
-
-# EXTENSÕES DO BOT 1 DEVEM SER CARREGADAS AQUI
 async def setup_bot1():
-    await bot1.load_extension("Commands.coordenador")
+    await bot1.load_extension("bot_coordenador.Commands.coordenador")
     print("[BOT 1] Extensões carregadas.")
 
 
@@ -25,17 +23,6 @@ async def on_ready():
     print(f"[BOT 1] Logado como {bot1.user}")
     await bot1.tree.sync()
     print("[BOT 1] Slash commands sincronizados.")
-
-@bot1.event
-async def on_member_join(member):
-    try:
-        await member.send(
-            "📘 Você entrou no **Servidor do Coordenador**!\n"
-            "Estou aqui para ajudar quando precisar. 😊"
-        )
-        print(f"[BOT 1] Mensagem enviada para {member.name}")
-    except:
-        print(f"[BOT 1] Não consegui enviar DM para {member.name}.")
 
 
 # ============================
@@ -48,9 +35,8 @@ intents2.members = True
 
 bot2 = commands.Bot(command_prefix='?', intents=intents2)
 
-
 async def setup_bot2():
-    await bot2.load_extension("Commands.aluno")
+    await bot2.load_extension("bot_aluno.Commands.aluno")
     print("[BOT 2] Extensões carregadas.")
 
 
@@ -61,19 +47,6 @@ async def on_ready():
     print("[BOT 2] Slash commands sincronizados.")
 
 
-@bot2.event
-async def on_member_join(member):
-    try:
-        await member.send(
-            "📗 Você entrou no **Servidor do Aluno**!\n"
-            "Se precisar de mim, estou à disposição! 😄"
-        )
-        print(f"[BOT 2] Mensagem enviada para {member.name}")
-    except:
-        print(f"[BOT 2] Não consegui enviar DM para {member.name}.")
-
-
-
 # ============================
 # INICIALIZAÇÃO DOS DOIS BOTS
 # ============================
@@ -82,16 +55,13 @@ async def main():
     TOKEN1 = config("TOKEN1")
     TOKEN2 = config("TOKEN2")
 
-    # Carrega as extensões ANTES de iniciar os bots
     await setup_bot1()
     await setup_bot2()
 
-    # Executa os dois bots simultaneamente
     await asyncio.gather(
         bot1.start(TOKEN1),
         bot2.start(TOKEN2)
     )
-
 
 if __name__ == "__main__":
     asyncio.run(main())

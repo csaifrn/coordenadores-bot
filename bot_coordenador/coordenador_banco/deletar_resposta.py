@@ -1,4 +1,4 @@
-from database.database import get_connection 
+from database import get_connection 
 
 def deletar_resposta(nome_discord, titulo):
     

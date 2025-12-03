@@ -1,4 +1,4 @@
-from database.database import get_connection
+from database import get_connection
 
 def obter_duvidas(nome_discord, inicio_periodo, tipo):
     

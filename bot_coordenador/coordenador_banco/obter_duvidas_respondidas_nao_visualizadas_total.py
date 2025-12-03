@@ -1,7 +1,7 @@
-from database.database import get_connection
+from database import get_connection
 from datetime import datetime
 
-def obter_duvidas_respondidas_nao_visualizadas(inicio_periodo):
+def obter_duvidas_respondidas_nao_visualizadas_total(inicio_periodo):
     """
     Retorna as dúvidas respondidas de todos os alunos, filtradas por período (se fornecido), 
     ordenadas pela data de resposta (timestamp_resposta) de forma que o aluno com a primeira resposta
@@ -51,6 +51,5 @@ def obter_duvidas_respondidas_nao_visualizadas(inicio_periodo):
             reverse=True
         )
     )
-
     conn.close()
     return sorted_duvidas_respondidas
