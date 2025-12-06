@@ -25,6 +25,18 @@ async def on_ready():
     print("[BOT 1] Slash commands sincronizados.")
 
 
+@bot1.event
+async def on_member_join(member):
+    try:
+        await member.send(
+            "📗 Bem-vindo(a)\n\n"
+            "Estou aqui para te ajudar com dúvidas, avisos e tudo que você precisar. "
+            "Fique à vontade para me chamar sempre que quiser! 😄"
+        )
+        print(f"[BOT 1] Mensagem enviada para {member.name}")
+    except:
+        print(f"[BOT 1] Não consegui enviar DM para {member.name}.")
+
 # ============================
 # CONFIGURAÇÃO DO BOT 2
 # ============================
@@ -46,6 +58,18 @@ async def on_ready():
     await bot2.tree.sync()
     print("[BOT 2] Slash commands sincronizados.")
 
+
+@bot2.event
+async def on_member_join(member):
+    try:
+        await member.send(
+            "📗 Bem-vindo(a)\n\n"
+            "Estou aqui para te ajudar com dúvidas, avisos e tudo que você precisar. "
+            "Fique à vontade para me chamar sempre que quiser! 😄"
+        )
+        print(f"[BOT 2] Mensagem enviada para {member.name}")
+    except:
+        print(f"[BOT 2] Não consegui enviar DM para {member.name}.")
 
 # ============================
 # INICIALIZAÇÃO DOS DOIS BOTS
