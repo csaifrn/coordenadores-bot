@@ -2,103 +2,132 @@
 
 ## 1. O que é um Discord Bot?
 
-Um Discord bot é um programa que automatiza tarefas em servidores do Discord. Ele pode responder a comandos (slash commands), enviar mensagens, gerenciar interações e auxiliar na organização do servidor.
+* Um Discord bot é um programa que automatiza tarefas no servidor do Discord. Ele pode responder a comandos de texto, moderar chats, enviar mensagens e muito mais.
 
----
+## 2. Pré-requisitos para Criar um Discord Bot
 
-## 2. Pré-requisitos
+* Conta Discord.
+* Conta no Discord Developer Portal.
 
-* **Conta no Discord**
-* **Conta no Discord Developer Portal**
-* **Python 3.10+** instalado
-* Editor de código (ex.: VS Code)
+## 3. Criar um Novo Aplicativo Discord
 
----
+* Acesse o Discord Developer Portal.
+* Clique em **New Application**.
+* Defina um nome para o aplicativo (ex.: MeuBot).
 
-## 3. Criando o Aplicativo no Discord Developer
+> ⚠️ **Observação:** Atualmente, ao criar uma Application, o Discord **já cria automaticamente o bot**. Por isso, pode não aparecer mais o botão "Add Bot".
 
-1. Acesse o **Discord Developer Portal**.
-2. Clique em **New Application**.
-3. Defina um nome para o aplicativo (ex.: *MeuBot*).
+## 4. Configuração do Bot
 
----
+* Acesse a aba **Bot** no menu lateral.
+* Copie o **TOKEN** do bot.
 
-## 4. Criando o Bot
+> 🚨 **Atenção:** Nunca compartilhe o token publicamente.
 
-1. No menu lateral, acesse **Bot**.
-2. Clique em **Add Bot**.
-3. (Opcional) Defina nome e avatar do bot.
+### ⚠️ Importante sobre "Authorize Flow"
 
-> ⚠️ **Importante:** Ative apenas os *Privileged Gateway Intents* necessários (ex.: *Message Content*, se o projeto exigir).
+Na aba **Bot**, existe a opção **Authorize Flow**, incluindo a configuração **"Requires OAuth2 Code Grant"**.
 
----
+❌ **Essa opção NÃO deve ser ativada para bots comuns** feitos com `discord.py`, slash commands ou prefixo.
 
-## 5. Token do Bot
+Essa configuração é usada apenas para:
 
-* Copie o **Bot Token**.
-* Guarde com segurança e **nunca publique** esse token.
+* Aplicações web
+* Sistemas com login via Discord (OAuth2)
+* Integrações que utilizam `redirect_uri`
 
----
+Se ativada indevidamente, o bot **não será adicionado ao servidor**, mesmo após autorizar pelo link.
 
-## 6. Adicionando o Bot ao Servidor (Forma Correta)
+## 5. Adicionar o Bot ao Servidor (Forma Correta)
 
-1. Vá em **OAuth2 → URL Generator**.
-2. Em **Scopes**, selecione **bot** (e **applications.commands**, se usar slash commands).
-3. Em **Bot Permissions**, marque apenas as permissões necessárias (ex.: *Send Messages*, *Use Slash Commands*, *Administrator* apenas se realmente precisar).
-4. Copie o link gerado, acesse-o no navegador e selecione o servidor.
+### Passo 1 – OAuth2 URL Generator
 
-> ❗ **Não marque** a opção *Requires OAuth2 Code Grant* para bots comuns. Ela é usada apenas para integrações externas.
+* Vá em **OAuth2 → URL Generator**
+* Marque os escopo:
 
----
+  * ☑️ `bot`
 
-# Rodando o Bot Localmente
+### Passo 2 – Permissões
 
-## 1. Baixar o Repositório
+* Selecione as permissões desejadas (Administrator seria o ideal)
 
-* Use `git clone` **ou** baixe o ZIP.
-* Abra a pasta no editor de código.
+### Passo 3 – Convite
 
----
+* Copie o link gerado
+* Abra no navegador
+* Selecione o servidor
+* Autorize
 
-## 2. Instalar Dependências
+✅ O bot aparecerá automaticamente no servidor.
 
-No terminal:
+## O que é preciso para rodar o bot no seu Servidor Discord?
+
+### 1. Baixar o repositório
+
+* Clone o repositório ou baixe o ZIP.
+* Abra a pasta no editor de código (ex.: VS Code).
+
+### 2. Instalar o Python
+
+* Instale o Python pelo site oficial.
+
+### 3. Criar um ambiente virtual e instalar as dependências
+
+* Recomenda-se o uso de um **ambiente virtual** para evitar conflitos entre bibliotecas.
+
+**Criar o ambiente virtual:**
 
 ```bash
-pip install -r requirements.txt
+python -m venv venv
 ```
 
----
+**Ativar o ambiente virtual:**
 
-## 3. Configurar o Token
+* Windows:
 
-* Crie um arquivo **.env** (caso não exista).
-* Adicione:
+```bash
+venv\Scripts\activate
+```
+
+* Linux / macOS:
+
+```bash
+source venv/bin/activate
+```
+
+**Instalar as dependências do projeto:**
+
+* As bibliotecas necessárias já estão listadas no arquivo `requirements.txt`.
+
+````bash
+pip install -r requirements.txt
+```bash
+pip install discord.py
+````
+
+### 4. Configurar o token
+
+* Crie um arquivo `.env`.
+* Dentro dele, adicione:
 
 ```env
-TOKEN=seu_token_aqui
+TOKEN1=token do coordenador
+TOKEN2=token do aluno
 ```
 
-> Obs.: não use aspas nem chaves.
+> Não use aspas nem chaves.
 
----
+## Inicializar o Bot
 
-## 4. Iniciar o Bot
-
-No terminal, execute:
+* No terminal, execute:
 
 ```bash
 python index.py
 ```
 
----
+## Testar o Bot no Discord
 
-## 5. Testar no Discord
-
-* Abra o servidor onde o bot foi adicionado.
-* Digite `/` e selecione um comando disponível.
-
----
+* No servidor, digite `/` e selecione um comando disponível.
 
 ## Estrutura Básica do Projeto
 
