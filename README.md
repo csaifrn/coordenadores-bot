@@ -1,52 +1,117 @@
 # Início de um Projeto com Discord Bot
+
 ## 1. O que é um Discord Bot?
-- Um Discord bot é um programa que automatiza tarefas no servidor do Discord. Ele pode responder a comandos de texto, moderar chats, enviar mensagens e muito mais.
 
-## 2. Pré-requisitos para Criar um Discord Bot
-- Conta Discord: Para criar um bot, você precisará de uma conta no Discord.
-- Conta Developer no Discord: Você precisará criar uma conta de desenvolvedor no Portal de Desenvolvedores Discord para criar seu bot.
+Um Discord bot é um programa que automatiza tarefas em servidores do Discord. Ele pode responder a comandos (slash commands), enviar mensagens, gerenciar interações e auxiliar na organização do servidor.
 
-## 3. Criar um Novo Aplicativo Discord
-- Vá ao Portal de Desenvolvedores Discord e clique em "New Application".
-- Defina um nome para seu aplicativo Discord (por exemplo, "MeuBot").
+---
 
-## 4. Criar um Bot
-- Clique em "Bot" na coluna da esquerda.
-- Clique em "Add Bot" para criar um novo bot. Isso permitirá que você interaja com o bot através de comandos.
+## 2. Pré-requisitos
 
-## 5. Configurar a Chave de Token do Bot
-- Copie o token do bot gerado na parte inferior. Este token é essencial para fazer com que o bot funcione corretamente. GUARDE ESTE TOKEN COM SEGURANÇA, nunca o compartilhe publicamente.
+* **Conta no Discord**
+* **Conta no Discord Developer Portal**
+* **Python 3.10+** instalado
+* Editor de código (ex.: VS Code)
 
-## 6. Configurar o Bot para um Servidor
-- Volte para o seu servidor Discord onde deseja usar o bot.
-- Abra o aplicativo do seu bot no portal de desenvolvedores, vá até a guia "OAuth2" e selecione "URL de convite".
-- Selecione as permissões desejadas e gere o link para adicionar o bot ao seu servidor.
-- Entre na url desse link e selecione o servidor que ele ficará.
+---
 
-# O que é preciso para rodar o bot no seu Servidor Discord?
+## 3. Criando o Aplicativo no Discord Developer
 
-## 1. Baixar o repositório
-- Seja por meio do git clone ou baixando o zip do repositório.
-- Abra essa pasta em um editor de código(ex.: VS code).
-  
-## 2. Inicializar o Bot com Python
-- Instale o Python em seu computador se ainda não tiver (você pode fazer isso através do site oficial do Python).
+1. Acesse o **Discord Developer Portal**.
+2. Clique em **New Application**.
+3. Defina um nome para o aplicativo (ex.: *MeuBot*).
 
-## 3. Instale as Bibliotecas Discord.py
-- Abra o terminal ou prompt de comando e instale a biblioteca discord.py com o comando:
-  - pip install discord.py
+---
 
-## 4. Configurar token
- - Vá até o arquivo .env , se não tiver crie um , e dentro dele precisa estar "TOKEN = {seu_token}" , no caso o "seu_token" foi aquele você configurou.
-   - obs: não precisa conter aspas no token e nem chaves.
+## 4. Criando o Bot
 
-# Inicializar o bot com um prefixo
-## 1. Rodar arquivo para iniciar
-- Dentro do terminal do editor de código apenas rode o arquivo index.py .
+1. No menu lateral, acesse **Bot**.
+2. Clique em **Add Bot**.
+3. (Opcional) Defina nome e avatar do bot.
 
-## 2. Testar o Bot no Servidor Discord
-- Para testar o bot no discord , basta digitar "/" e selecionar aquela funcionalidade que você desejar.
+> ⚠️ **Importante:** Ative apenas os *Privileged Gateway Intents* necessários (ex.: *Message Content*, se o projeto exigir).
 
+---
+
+## 5. Token do Bot
+
+* Copie o **Bot Token**.
+* Guarde com segurança e **nunca publique** esse token.
+
+---
+
+## 6. Adicionando o Bot ao Servidor (Forma Correta)
+
+1. Vá em **OAuth2 → URL Generator**.
+2. Em **Scopes**, selecione **bot** (e **applications.commands**, se usar slash commands).
+3. Em **Bot Permissions**, marque apenas as permissões necessárias (ex.: *Send Messages*, *Use Slash Commands*, *Administrator* apenas se realmente precisar).
+4. Copie o link gerado, acesse-o no navegador e selecione o servidor.
+
+> ❗ **Não marque** a opção *Requires OAuth2 Code Grant* para bots comuns. Ela é usada apenas para integrações externas.
+
+---
+
+# Rodando o Bot Localmente
+
+## 1. Baixar o Repositório
+
+* Use `git clone` **ou** baixe o ZIP.
+* Abra a pasta no editor de código.
+
+---
+
+## 2. Instalar Dependências
+
+No terminal:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 3. Configurar o Token
+
+* Crie um arquivo **.env** (caso não exista).
+* Adicione:
+
+```env
+TOKEN=seu_token_aqui
+```
+
+> Obs.: não use aspas nem chaves.
+
+---
+
+## 4. Iniciar o Bot
+
+No terminal, execute:
+
+```bash
+python index.py
+```
+
+---
+
+## 5. Testar no Discord
+
+* Abra o servidor onde o bot foi adicionado.
+* Digite `/` e selecione um comando disponível.
+
+---
+
+## Estrutura Básica do Projeto
+
+* **bot_aluno/**: comandos e lógica do bot do aluno.
+* **bot_coordenador/**: comandos e lógica do bot do coordenador.
+* **database.py**: inicialização e gerenciamento do banco de dados.
+* **duvidas.db**: banco de dados compartilhado.
+* **index.py**: inicialização geral do sistema.
+* **requirements.txt**: dependências do projeto.
+* **README.md**: documentação.
+* **.gitignore**: arquivos ignorados pelo Git.
+
+---
 
 # AUTORES
 
