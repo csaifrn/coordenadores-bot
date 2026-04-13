@@ -101,8 +101,7 @@ source venv/bin/activate
 
 ````bash
 pip install -r requirements.txt
-```bash
-pip install discord.py
+
 ````
 
 ### 4. Configurar o token
