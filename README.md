@@ -143,8 +143,5 @@ python index.py
 
 # AUTORES
 
-| [<img src="https://avatars.githubusercontent.com/u/178320852" width=150><br><sub>Sarah Medeiros dos Santos</sub>](https://github.com/sarahmds) | 
-| :---: |
-
-[<img src="https://github.com/gabrielzzzs.png" width=150><br><sub>Gabriel</sub>](https://github.com/gabrielzzzs) |
-| :---: |
+| [<img src="https://avatars.githubusercontent.com/u/178320852" width=150><br><sub>Sarah Medeiros dos Santos</sub>](https://github.com/sarahmds) | [<img src="https://avatars.githubusercontent.com/u/161068456" width=150><br><sub>Gabriel</sub>](https://github.com/gabrielzzzs) | [<img src="https://avatars.githubusercontent.com/u/124364195" width=150><br><sub>João Pedro Nascimento</sub>](https://github.com/JpRevolut) |
+| :---: | :---: | :---: |
